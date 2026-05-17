@@ -25,7 +25,7 @@ spec:
       containers:
         - name: uptime-kuma
           # A imagem será atualizada pelo pipeline do GitHub Actions
-          image: louislam/uptime-kuma:1
+          image: ghcr.io/startdevopss/uptime-kuma:latest
           ports:
             - containerPort: 3001
               name: http

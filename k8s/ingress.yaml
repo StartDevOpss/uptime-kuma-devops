@@ -18,7 +18,7 @@ metadata:
       }
 spec:
   rules:
-    - host: uptime.SEU_DOMINIO.com  # Troque pelo seu domínio
+    - host: uptime.exemplo.com  # Troque pelo seu domínio
       http:
         paths:
           - path: /
@@ -31,5 +31,5 @@ spec:
   # Habilita TLS/HTTPS com cert-manager (opcional mas recomendado)
   # tls:
   #   - hosts:
-  #       - uptime.SEU_DOMINIO.com
-  #     secretName: uptime-kuma-tls
+#       - uptime.exemplo.com
+#     secretName: uptime-kuma-tls
