@@ -52,26 +52,3 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-
-      # 5. Configura o kubectl com as credenciais do cluster
-      #    O KUBECONFIG é salvo como secret no GitHub
-      - name: Configurar kubectl
-        uses: azure/k8s-set-context@v3
-        with:
-          method: kubeconfig
-          kubeconfig: ${{ secrets.KUBECONFIG }}
-
-      # 6. Atualiza a imagem no deployment do Kubernetes
-      #    Usa o SHA do commit para garantir que a versão correta sobe
-      - name: Deploy no Kubernetes
-        run: |
-          kubectl set image deployment/uptime-kuma \
-            uptime-kuma=${{ env.IMAGE }}:sha-${{ github.sha }} \
-            -n uptime-kuma
-
-      # 7. Aguarda o rollout terminar e confirma que está tudo ok
-      - name: Aguardar rollout
-        run: |
-          kubectl rollout status deployment/uptime-kuma \
-            -n uptime-kuma \
-            --timeout=120s
