@@ -1,0 +1,77 @@
+name: Build & Deploy — Uptime Kuma
+
+# Dispara quando há push na branch main
+on:
+  push:
+    branches:
+      - main
+
+# Variável com o nome da imagem no GHCR
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/uptime-kuma
+
+jobs:
+  build-and-deploy:
+    name: Build, Push e Deploy
+    runs-on: ubuntu-latest
+
+    # Permissões necessárias para publicar no GHCR
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # 1. Baixa o código do repositório
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      # 2. Faz login no GitHub Container Registry (GHCR)
+      #    Usa o token automático do GitHub — sem precisar criar secrets manualmente
+      - name: Login no GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 3. Prepara metadados da imagem (tags e labels)
+      - name: Extrair metadados da imagem
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=latest
+
+      # 4. Faz o build da imagem Docker e publica no GHCR
+      - name: Build e Push da imagem Docker
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      # 5. Configura o kubectl com as credenciais do cluster
+      #    O KUBECONFIG é salvo como secret no GitHub
+      - name: Configurar kubectl
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBECONFIG }}
+
+      # 6. Atualiza a imagem no deployment do Kubernetes
+      #    Usa o SHA do commit para garantir que a versão correta sobe
+      - name: Deploy no Kubernetes
+        run: |
+          kubectl set image deployment/uptime-kuma \
+            uptime-kuma=${{ env.IMAGE }}:sha-${{ github.sha }} \
+            -n uptime-kuma
+
+      # 7. Aguarda o rollout terminar e confirma que está tudo ok
+      - name: Aguardar rollout
+        run: |
+          kubectl rollout status deployment/uptime-kuma \
+            -n uptime-kuma \
+            --timeout=120s

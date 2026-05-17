@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: uptime-kuma
+  namespace: uptime-kuma
+  labels:
+    app: uptime-kuma
+spec:
+  # Apenas 1 réplica — o Uptime Kuma usa SQLite
+  # que não suporta múltiplas instâncias simultâneas
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: uptime-kuma
+
+  strategy:
+    type: Recreate  # Garante que o pod antigo para antes do novo subir
+
+  template:
+    metadata:
+      labels:
+        app: uptime-kuma
+    spec:
+      containers:
+        - name: uptime-kuma
+          # A imagem será atualizada pelo pipeline do GitHub Actions
+          image: louislam/uptime-kuma:1
+          ports:
+            - containerPort: 3001
+              name: http
+
+          # Verifica se a aplicação está respondendo
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3001
+            initialDelaySeconds: 30
+            periodSeconds: 10
+
+          # Verifica se a aplicação está pronta para receber tráfego
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3001
+            initialDelaySeconds: 10
+            periodSeconds: 5
+
+          # Limites de recursos do container
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
+
+          # Monta o volume de dados persistentes
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: uptime-kuma-pvc
+
+---
+# Volume persistente para salvar os dados do Uptime Kuma
+# (banco de dados, configurações, etc.)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: uptime-kuma-pvc
+  namespace: uptime-kuma
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

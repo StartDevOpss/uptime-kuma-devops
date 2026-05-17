@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: uptime-kuma
+  namespace: uptime-kuma
+  annotations:
+    # Usa o nginx como controller de ingress (mais comum)
+    kubernetes.io/ingress.class: "nginx"
+    # Redireciona HTTP para HTTPS automaticamente
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Suporte a WebSocket — necessário para o Uptime Kuma funcionar
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/server-snippets: |
+      location / {
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+      }
+spec:
+  rules:
+    - host: uptime.SEU_DOMINIO.com  # Troque pelo seu domínio
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: uptime-kuma
+                port:
+                  number: 80
+  # Habilita TLS/HTTPS com cert-manager (opcional mas recomendado)
+  # tls:
+  #   - hosts:
+  #       - uptime.SEU_DOMINIO.com
+  #     secretName: uptime-kuma-tls

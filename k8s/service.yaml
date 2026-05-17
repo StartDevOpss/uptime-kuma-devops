@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: uptime-kuma
+  namespace: uptime-kuma
+  labels:
+    app: uptime-kuma
+spec:
+  # ClusterIP expõe o serviço internamente no cluster
+  # O acesso externo é feito pelo Ingress abaixo
+  type: ClusterIP
+  selector:
+    app: uptime-kuma
+  ports:
+    - name: http
+      port: 80          # Porta do serviço dentro do cluster
+      targetPort: 3001  # Porta do container
+      protocol: TCP
