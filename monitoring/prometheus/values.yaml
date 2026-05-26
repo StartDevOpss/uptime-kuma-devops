@@ -47,7 +47,7 @@ grafana:
   enabled: true
   adminPassword: "DevOps@2025!"  # Troque antes de usar em produção
 
-  # Dashboards extras importados via ConfigMap
+  # Dashboards extras importados via ConfigMap (sidecar coloca em /tmp/dashboards)
   dashboardProviders:
     dashboardproviders.yaml:
       apiVersion: 1
@@ -59,14 +59,15 @@ grafana:
           disableDeletion: false
           editable: true
           options:
-            path: /var/lib/grafana/dashboards/custom
+            path: /tmp/dashboards
 
-  dashboards:
-    custom:
-      uptime-kuma:
-        gnetId: 14847     # Dashboard público do Uptime Kuma no Grafana.com
-        revision: 1
-        datasource: Prometheus
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      folder: /tmp/dashboards
 
   # Ingress para o Grafana
   ingress:
