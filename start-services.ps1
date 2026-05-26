@@ -41,7 +41,7 @@ Write-Host "Servicos disponiveis:" -ForegroundColor Green
 Write-Host "  Uptime Kuma  -> http://localhost:3001"   -ForegroundColor Yellow
 Write-Host "  ArgoCD       -> https://localhost:8080"  -ForegroundColor Yellow
 Write-Host "  Prometheus   -> http://localhost:9090"   -ForegroundColor Yellow
-Write-Host "  Grafana      -> http://localhost:3000    (admin / DevOps@2025!)" -ForegroundColor Yellow
+Write-Host "  Grafana      -> http://localhost:3000    (admin / senha do values.yaml)" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "Para parar tudo: .\start-services.ps1 -Stop" -ForegroundColor Gray
 

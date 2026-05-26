@@ -45,7 +45,7 @@ alertmanager:
 # --- Grafana ---
 grafana:
   enabled: true
-  adminPassword: "DevOps@2025!"  # Troque antes de usar em produção
+  adminPassword: "TROQUE_ANTES_DE_USAR"  # Defina uma senha forte antes de instalar
 
   # Dashboards extras importados via ConfigMap (sidecar coloca em /tmp/dashboards)
   dashboardProviders:

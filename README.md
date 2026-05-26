@@ -151,7 +151,7 @@ Para parar:
 | Uptime Kuma | http://localhost:3001 | Configurado no primeiro acesso |
 | ArgoCD | https://localhost:8080 | admin / ver abaixo |
 | Prometheus | http://localhost:9090 | — |
-| Grafana | http://localhost:3000 | admin / DevOps@2025! |
+| Grafana | http://localhost:3000 | admin / senha definida em `monitoring/prometheus/values.yaml` |
 
 > **Senha do ArgoCD:**
 > ```bash
