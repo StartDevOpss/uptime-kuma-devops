@@ -1,117 +1,185 @@
 # Uptime Kuma — Pipeline DevOps (Portfólio)
 
-Pipeline completo de CI/CD com GitHub Actions + Kubernetes para o Uptime Kuma.
+Pipeline GitOps completo com GitHub Actions, ArgoCD, Helm e monitoramento via Prometheus + Grafana, rodando em Kubernetes local (Kind).
 
 ## Stack utilizada
 
-- **App:** Uptime Kuma (monitoramento de serviços)
-- **Container Registry:** GitHub Container Registry (GHCR)
-- **CI/CD:** GitHub Actions
-- **Orquestração:** Kubernetes
+| Camada | Tecnologia |
+|---|---|
+| App | [Uptime Kuma](https://github.com/louislam/uptime-kuma) — monitoramento de serviços |
+| Container | Docker + GitHub Container Registry (GHCR) |
+| CI/CD | GitHub Actions |
+| GitOps | ArgoCD |
+| Deploy | Helm Chart customizado |
+| Cluster | Kubernetes local via Kind |
+| Monitoramento | Prometheus + Grafana (kube-prometheus-stack) |
+| Ingress | nginx ingress controller |
 
-## Estrutura do projeto
+## Arquitetura
+
+```
+┌─────────────────────────────────────────────────────┐
+│                   Desenvolvedor                     │
+│              git push origin main                   │
+└────────────────────────┬────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────┐
+│              GitHub Actions (CI)                    │
+│  1. Build da imagem Docker                          │
+│  2. Push para GHCR                                  │
+│  3. Atualiza tag no helm/uptime-kuma/values.yaml    │
+│  4. Commit automático [skip ci]                     │
+└────────────────────────┬────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────┐
+│              ArgoCD (GitOps)                        │
+│  Detecta mudança no values.yaml                     │
+│  Aplica o Helm chart no cluster                     │
+└────────────────────────┬────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────┐
+│           Kind Cluster (Kubernetes local)           │
+│                                                     │
+│  namespace: uptime-kuma                             │
+│    └── Deployment + Service + Ingress + PVC         │
+│                                                     │
+│  namespace: argocd                                  │
+│    └── ArgoCD                                       │
+│                                                     │
+│  namespace: monitoring                              │
+│    └── Prometheus + Grafana + Alertmanager          │
+└─────────────────────────────────────────────────────┘
+```
+
+## Estrutura do repositório
 
 ```
 .
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml      # Pipeline de build e deploy
-├── k8s/
-│   ├── deployment.yaml     # Deployment + PVC
-│   ├── service.yaml        # Service (ClusterIP)
-│   └── ingress.yaml        # Ingress (acesso externo)
+│       └── deploy.yml              # CI: build, push e atualização GitOps
+├── helm/
+│   └── uptime-kuma/
+│       ├── Chart.yaml
+│       ├── values.yaml             # Tag da imagem atualizada automaticamente pelo CI
+│       └── templates/
+│           ├── deployment.yaml
+│           ├── service.yaml
+│           ├── ingress.yaml
+│           ├── pvc.yaml
+│           └── servicemonitor.yaml # Integração com Prometheus
+├── monitoring/
+│   ├── prometheus/
+│   │   └── values.yaml            # Config do kube-prometheus-stack
+│   └── grafana/
+│       └── dashboard-configmap.yaml  # Dashboard customizado do Uptime Kuma
+├── argocd/
+│   └── application.yaml           # App ArgoCD apontando para o Helm chart
 ├── Dockerfile
-└── README.md
+└── start-services.ps1             # Script para subir todos os port-forwards
 ```
 
-## Passo a passo
+## Como executar localmente
 
-### 1. Fork e clone
+### Pré-requisitos
 
-```bash
-# Fork este repositório no GitHub, depois clone:
-git clone https://github.com/SEU_USUARIO/uptime-kuma-devops
-cd uptime-kuma-devops
-```
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- [Kind](https://kind.sigs.k8s.io/)
+- [kubectl](https://kubernetes.io/docs/tasks/tools/)
+- [Helm](https://helm.sh/)
+- [ArgoCD CLI](https://argo-cd.readthedocs.io/en/stable/cli_installation/)
 
-### 2. Instalar o Kind (Kubernetes local)
-
-```bash
-# macOS
-brew install kind
-
-# Linux
-curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.22.0/kind-linux-amd64
-chmod +x ./kind && sudo mv ./kind /usr/local/bin/kind
-```
-
-### 3. Criar o cluster local
+### 1. Criar o cluster Kind
 
 ```bash
 kind create cluster --name uptime-kuma
 ```
 
-### 4. Criar o namespace no Kubernetes
+### 2. Instalar o nginx ingress controller
 
 ```bash
-kubectl create namespace uptime-kuma
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+kubectl wait --namespace ingress-nginx \
+  --for=condition=ready pod \
+  --selector=app.kubernetes.io/component=controller \
+  --timeout=120s
 ```
 
-### 5. Aplicar os manifests
+### 3. Instalar o ArgoCD
 
 ```bash
-kubectl apply -f k8s/
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl wait --for=condition=available deployment/argocd-server -n argocd --timeout=120s
 ```
 
-### 6. Configurar o Secret no GitHub
+### 4. Instalar o kube-prometheus-stack (Prometheus + Grafana)
 
 ```bash
-# Exportar o KUBECONFIG do cluster
-kubectl config view --raw > kubeconfig.yaml
-
-# Copiar o conteúdo e adicionar como secret no GitHub:
-# Repositório → Settings → Secrets → New repository secret
-# Nome: KUBECONFIG
-# Valor: (cole o conteúdo do kubeconfig.yaml)
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+  -n monitoring --create-namespace \
+  -f monitoring/prometheus/values.yaml
 ```
 
-### 7. Editar os arquivos com seu usuário
-
-No `k8s/deployment.yaml`, troque:
-```
-image: ghcr.io/SEU_USUARIO/uptime-kuma:latest
-```
-
-No `k8s/ingress.yaml`, troque:
-```
-host: uptime.SEU_DOMINIO.com
-```
-
-### 8. Fazer o primeiro deploy
+### 5. Criar a aplicação no ArgoCD
 
 ```bash
-git add .
-git commit -m "feat: primeiro deploy do Uptime Kuma"
-git push origin main
+kubectl apply -f argocd/application.yaml
 ```
 
-O pipeline vai:
-1. Fazer o build da imagem Docker
-2. Publicar no GHCR
-3. Fazer o deploy no Kubernetes automaticamente
+### 6. Subir os port-forwards (Windows)
 
-### 9. Acessar a aplicação
-
-```bash
-# Para testar localmente sem domínio:
-kubectl port-forward svc/uptime-kuma 3001:80 -n uptime-kuma
-
-# Acessar em: http://localhost:3001
+```powershell
+.\start-services.ps1
 ```
 
-## Próximos passos (diferenciais para o portfólio)
+Para parar:
 
-- [ ] Instalar ArgoCD e migrar para GitOps
-- [ ] Adicionar Helm chart
-- [ ] Configurar monitoramento com Prometheus + Grafana
-- [ ] Configurar TLS com cert-manager
+```powershell
+.\start-services.ps1 -Stop
+```
+
+## Serviços disponíveis
+
+| Serviço | URL | Credenciais |
+|---|---|---|
+| Uptime Kuma | http://localhost:3001 | Configurado no primeiro acesso |
+| ArgoCD | https://localhost:8080 | admin / ver abaixo |
+| Prometheus | http://localhost:9090 | — |
+| Grafana | http://localhost:3000 | admin / DevOps@2025! |
+
+> **Senha do ArgoCD:**
+> ```bash
+> kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 -d
+> ```
+
+## Pipeline GitOps em ação
+
+Cada `git push` na branch `main` dispara o ciclo completo:
+
+1. **GitHub Actions** faz o build e push da imagem para o GHCR com tag `sha-<commit>`
+2. **GitHub Actions** atualiza automaticamente a `tag` em `helm/uptime-kuma/values.yaml` e faz commit
+3. **ArgoCD** detecta a mudança no repositório e aplica o Helm chart no cluster
+4. O novo pod sobe com a imagem atualizada — zero intervenção manual
+
+## Monitoramento
+
+- **Prometheus** coleta métricas do cluster (nodes, pods, namespaces) via ServiceMonitor
+- **Grafana** exibe dashboards automáticos na pasta "Portfolio"
+- **Alertmanager** configurado junto ao stack (pronto para receber regras de alerta)
+- **Uptime Kuma** monitora a disponibilidade de ArgoCD, Prometheus, Grafana e GitHub
+
+## Decisões técnicas
+
+**Por que Kind?** Cluster Kubernetes local gratuito, sem depender de cloud, ideal para portfólio e desenvolvimento.
+
+**Por que GitOps com ArgoCD?** O repositório Git é a fonte de verdade. Nenhum `kubectl apply` manual em produção — tudo passa pelo pipeline.
+
+**Por que Helm?** Parametrização limpa dos manifests. A tag da imagem é o único valor que muda a cada deploy, atualizado automaticamente pelo CI.
+
+**Por que kube-prometheus-stack?** Solução completa (Prometheus + Grafana + Alertmanager + exporters) instalada com um único `helm install`.
