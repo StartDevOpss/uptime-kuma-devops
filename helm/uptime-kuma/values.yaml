@@ -61,6 +61,6 @@ readinessProbe:
 
 # ServiceMonitor para Prometheus (requer kube-prometheus-stack instalado)
 serviceMonitor:
-  enabled: true
+  enabled: false
   interval: 30s
   scrapeTimeout: 10s
