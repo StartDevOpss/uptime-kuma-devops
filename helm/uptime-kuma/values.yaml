@@ -1,0 +1,66 @@
+# ============================================================
+# values.yaml - Uptime Kuma Helm Chart
+# Troque os valores com SEU_USUARIO antes de usar
+# ============================================================
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/SEU_USUARIO/uptime-kuma
+  tag: latest
+  pullPolicy: Always
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3001
+
+ingress:
+  enabled: true
+  className: nginx
+  host: uptime.SEU_DOMINIO.com
+  tls:
+    enabled: false   # mude para true se usar cert-manager
+    secretName: uptime-kuma-tls
+
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 1Gi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Labels extras propagados para todos os recursos
+commonLabels:
+  app.kubernetes.io/part-of: devops-portfolio
+
+# Configurações de probe
+livenessProbe:
+  httpGet:
+    path: /
+    port: 3001
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: 3001
+  initialDelaySeconds: 10
+  periodSeconds: 5
+
+# ServiceMonitor para Prometheus (requer kube-prometheus-stack instalado)
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s

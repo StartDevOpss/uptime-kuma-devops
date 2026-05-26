@@ -1,0 +1,88 @@
+# ============================================================
+# monitoring/prometheus/values.yaml
+# Valores customizados para o kube-prometheus-stack
+# Instalação: helm install kube-prometheus-stack \
+#   prometheus-community/kube-prometheus-stack \
+#   -n monitoring --create-namespace \
+#   -f monitoring/prometheus/values.yaml
+# ============================================================
+
+# --- Prometheus ---
+prometheus:
+  prometheusSpec:
+    retention: 15d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+
+    # Descobre ServiceMonitors em qualquer namespace
+    serviceMonitorNamespaceSelector: {}
+    serviceMonitorSelector:
+      matchLabels:
+        release: kube-prometheus-stack
+
+    # Adiciona regras de alerta customizadas
+    additionalScrapeConfigs:
+      - job_name: 'uptime-kuma'
+        static_configs:
+          - targets: ['uptime-kuma.uptime-kuma.svc.cluster.local:80']
+
+# --- Alertmanager ---
+alertmanager:
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 2Gi
+
+# --- Grafana ---
+grafana:
+  enabled: true
+  adminPassword: "DevOps@2025!"  # Troque antes de usar em produção
+
+  # Dashboards extras importados via ConfigMap
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: 'custom'
+          orgId: 1
+          folder: 'Portfolio'
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/custom
+
+  dashboards:
+    custom:
+      uptime-kuma:
+        gnetId: 14847     # Dashboard público do Uptime Kuma no Grafana.com
+        revision: 1
+        datasource: Prometheus
+
+  # Ingress para o Grafana
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - grafana.SEU_DOMINIO.com
+    # tls:
+    #   - secretName: grafana-tls
+    #     hosts:
+    #       - grafana.SEU_DOMINIO.com
+
+# --- Node Exporter ---
+nodeExporter:
+  enabled: true
+
+# --- kube-state-metrics ---
+kubeStateMetrics:
+  enabled: true

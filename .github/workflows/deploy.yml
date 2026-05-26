@@ -1,54 +1,92 @@
-name: Build & Deploy — Uptime Kuma
+# ============================================================
+# .github/workflows/deploy.yml — atualizado para GitOps
+#
+# Fluxo:
+#   1. Build da imagem Docker
+#   2. Push para GHCR com tag do commit (sha)
+#   3. Atualiza o values.yaml do Helm com a nova tag
+#   4. Commit + push → ArgoCD detecta e faz o deploy automático
+# ============================================================
+name: CI — Build & GitOps Update
 
-# Dispara quando há push na branch main
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  pull_request:
+    branches: [main]
 
-# Variável com o nome da imagem no GHCR
 env:
-  IMAGE: ghcr.io/${{ github.repository_owner }}/uptime-kuma
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-deploy:
-    name: Build, Push e Deploy
+  # ----- Job 1: Build e push da imagem -----
+  build-and-push:
+    name: Build & Push Docker Image
     runs-on: ubuntu-latest
-
-    # Permissões necessárias para publicar no GHCR
     permissions:
       contents: read
       packages: write
 
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+
     steps:
-      # 1. Baixa o código do repositório
-      - name: Checkout do código
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. Faz login no GitHub Container Registry (GHCR)
-      #    Usa o token automático do GitHub — sem precisar criar secrets manualmente
-      - name: Login no GHCR
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 3. Prepara metadados da imagem (tags e labels)
-      - name: Extrair metadados da imagem
+      - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=sha,prefix=sha-
-            type=raw,value=latest
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
-      # 4. Faz o build da imagem Docker e publica no GHCR
-      - name: Build e Push da imagem Docker
+      - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ----- Job 2: Atualiza o Helm values para o ArgoCD pegar -----
+  update-gitops:
+    name: Update Helm values (GitOps)
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update image tag in values.yaml
+        run: |
+          NEW_TAG="sha-${{ github.sha }}"
+          sed -i "s|tag: .*|tag: ${NEW_TAG:0:11}|" helm/uptime-kuma/values.yaml
+          echo "Tag atualizada para: ${NEW_TAG:0:11}"
+
+      - name: Commit and push values.yaml
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add helm/uptime-kuma/values.yaml
+          git diff --staged --quiet || git commit -m "chore: update image tag to sha-$(echo ${{ github.sha }} | cut -c1-7) [skip ci]"
+          git push

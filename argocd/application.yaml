@@ -1,0 +1,48 @@
+# ============================================================
+# argocd/application.yaml
+# ArgoCD Application — GitOps para o Uptime Kuma
+# Troque StartDevOpss pelo seu usuário do GitHub
+# ============================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: uptime-kuma
+  namespace: argocd
+  # Finalizer garante que o ArgoCD limpa os recursos ao deletar a Application
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/StartDevOpss/uptime-kuma-devops
+    targetRevision: main
+    # Aponta para o Helm chart dentro do repo
+    path: helm/uptime-kuma
+    helm:
+      valueFiles:
+        - values.yaml
+      # Sobrescrita de valores em tempo de deploy (opcional)
+      # parameters:
+      #   - name: image.tag
+      #     value: "1.23.1"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: uptime-kuma
+
+  syncPolicy:
+    automated:
+      prune: true       # Remove recursos que saíram do Git
+      selfHeal: true    # Reverte mudanças manuais no cluster
+    syncOptions:
+      - CreateNamespace=true    # Cria o namespace se não existir
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+
+  # Critérios de saúde customizados (opcional)
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas   # Ignora diferença de replicas (se usar HPA)

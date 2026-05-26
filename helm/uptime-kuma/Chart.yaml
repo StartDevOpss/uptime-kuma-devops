@@ -1,0 +1,13 @@
+apiVersion: v2
+name: uptime-kuma
+description: Helm chart para o Uptime Kuma - Pipeline DevOps Portfolio
+type: application
+version: 1.0.0
+appVersion: "1.23.0"
+keywords:
+  - uptime
+  - monitoring
+  - devops
+maintainers:
+  - name: StartDevOpss
+    url: https://github.com/StartDevOpss

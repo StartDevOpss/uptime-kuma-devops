@@ -1,0 +1,40 @@
+# ============================================================
+# argocd/project.yaml
+# AppProject — isola o Uptime Kuma em seu próprio projeto ArgoCD
+# ============================================================
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: devops-portfolio
+  namespace: argocd
+spec:
+  description: "Projeto de portfólio DevOps — Uptime Kuma"
+
+  # Repositórios permitidos como fonte
+  sourceRepos:
+    - https://github.com/StartDevOpss/uptime-kuma-devops
+
+  # Clusters e namespaces de destino permitidos
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: uptime-kuma
+    - server: https://kubernetes.default.svc
+      namespace: monitoring
+
+  # Recursos de cluster que o projeto pode gerenciar
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+
+  # Recursos de namespace permitidos
+  namespaceResourceWhitelist:
+    - group: apps
+      kind: Deployment
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: PersistentVolumeClaim
+    - group: networking.k8s.io
+      kind: Ingress
+    - group: monitoring.coreos.com
+      kind: ServiceMonitor
