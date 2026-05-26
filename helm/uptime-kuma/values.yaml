@@ -6,7 +6,7 @@
 replicaCount: 1
 
 image:
-  repository: ghcr.io/startdevopss/uptime-kuma
+  repository: ghcr.io/startdevopss/uptime-kuma-devops
   tag: sha-ef71fa8
   pullPolicy: Always
 
