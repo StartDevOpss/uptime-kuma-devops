@@ -73,11 +73,11 @@ grafana:
     enabled: true
     ingressClassName: nginx
     hosts:
-      - grafana.SEU_DOMINIO.com
+      - grafana.localhost.com
     # tls:
     #   - secretName: grafana-tls
     #     hosts:
-    #       - grafana.SEU_DOMINIO.com
+    #       - grafana.localhost.com
 
 # --- Node Exporter ---
 nodeExporter:
