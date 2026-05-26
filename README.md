@@ -2,6 +2,16 @@
 
 Pipeline GitOps completo com GitHub Actions, ArgoCD, Helm e monitoramento via Prometheus + Grafana, rodando em Kubernetes local (Kind).
 
+## Screenshots
+
+| GitHub Actions | ArgoCD |
+|---|---|
+| ![GitHub Actions](docs/screenshots/github-actions.png) | ![ArgoCD](docs/screenshots/argocd.png) |
+
+| Grafana | Uptime Kuma |
+|---|---|
+| ![Grafana](docs/screenshots/grafana.png) | ![Uptime Kuma](docs/screenshots/uptime-kuma.png) |
+
 ## Stack utilizada
 
 | Camada | Tecnologia |
