@@ -1,0 +1,21 @@
+# Credenciais e configurações sensíveis
+*.env
+.env.*
+kubeconfig.yaml
+kubeconfig
+*.pem
+*.key
+*.crt
+
+# Claude Code
+.claude/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Editores
+.vscode/
+.idea/
+*.swp
+*.swo
